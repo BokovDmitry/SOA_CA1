@@ -1,0 +1,77 @@
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Build results
+[Bb]in/
+[Oo]bj/
+build/
+Build/
+*.dll
+*.exe
+*.app
+*.appx
+*.appxbundle
+
+# Visual Studio cache and DB files
+*.dbmdl
+*.bak
+*.backup
+*.log
+*.VC.db
+*.VC.VC.opendb
+
+# NuGet
+packages/
+*.nupkg
+project.lock.json
+project.fragment.lock.json
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# Visual Studio profiler
+*.psess
+*.vsp
+*.vspx
+
+# Rider / JetBrains
+.idea/
+*.sln.iml
+
+# ReSharper
+_ReSharper*/
+*.DotSettings.user
+
+# NCrunch
+*.ncrunch*
+*._ncrunch*
+
+# VS Code settings (optional)
+.vscode/
+
+# Test results
+TestResults/
+*.trx
+
+# Others
+*.log
+*.vspscc
+*.vssscc
+*.pdb
+*.ipch
+*.opensdf
+*.sdf
+*.cache
+*.ilk
+*.obj
+*.pch
+*.idb
+
+# Ignore user-specific files
+*.user
+*.rsuser
+*.userprefs
