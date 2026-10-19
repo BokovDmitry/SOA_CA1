@@ -1,6 +1,13 @@
-﻿<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+﻿<header class="app-header">
+    <div class="app-header-inner">
+        <a class="brand" href="">
+            <img class="brand-logo" src="images/xchangeit-logo.png" alt="Xchangeit logo" />
+            <span class="brand-name">Xchangeit</span>
+        </a>
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-
-</div>
-
+        <nav class="header-nav">
+            <NavLink class="header-link" href="currencies">Currencies</NavLink>
+            <NavLink class="header-link" href="" Match="NavLinkMatch.All">Crypto Market</NavLink>
+        </nav>
+    </div>
+</header>
