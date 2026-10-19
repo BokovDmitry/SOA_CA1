@@ -5,12 +5,15 @@ public class Crypto
     private string _id;
     private string _name;
     private string _symbol;
+    private string _icon = string.Empty;
     private decimal _price;
     private decimal _volume;
     private decimal _marketCap;
     private decimal _totalSupply;
+    private decimal _allTimeHigh;
+    private decimal _allTimeLow;
     private decimal _priceChange1h;
-    private List<float> _chartPoints;
+    private List<float> _chartPoints = [];
 
     public string Id
     {
@@ -28,6 +31,12 @@ public class Crypto
     {
         get => _symbol;
         set => _symbol = value ?? throw new ArgumentNullException(nameof(value));
+    }
+    
+    public string Icon
+    {
+        get => _icon;
+        set => _icon = value ?? string.Empty;
     }
 
     public decimal Price
@@ -53,7 +62,19 @@ public class Crypto
         get => _totalSupply;
         set => _totalSupply = value < 0 ? 0 : value;
     }
-    
+
+    public decimal AllTimeHigh
+    {
+        get => _allTimeHigh;
+        set => _allTimeHigh = value < 0 ? 0 : value;
+    }
+
+    public decimal AllTimeLow
+    {
+        get => _allTimeLow;
+        set => _allTimeLow = value < 0 ? 0 : value;
+    }
+
     public decimal PriceChange1h
     {
         get => _priceChange1h;

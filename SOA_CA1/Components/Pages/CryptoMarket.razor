@@ -1,0 +1,138 @@
+﻿@page "/"
+@* Prerendering is off so the page calls the rate-limited API once per load instead of twice *@
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@using System.Globalization
+@using System.Net
+@using System.Text.Json
+@inject ICryptoService CryptoApi
+@inject IConfiguration Configuration
+@inject IWebHostEnvironment HostEnvironment
+
+<PageTitle>Crypto Market</PageTitle>
+
+<h1>Crypto Market</h1>
+<p>Real-time prices and 1-hour price action.</p>
+
+@if (_cryptos.Count > 0)
+{
+    <div>
+        @if (!string.IsNullOrEmpty(_selected?.Icon))
+        {
+            <img src="@_selected.Icon" alt="@_selected.Name logo" width="28" height="28" />
+        }
+        <select value="@_selectedId" @onchange="OnCryptoChangedAsync" aria-label="Cryptocurrency">
+            @foreach (var crypto in _cryptos)
+            {
+                <option value="@crypto.Id">@crypto</option>
+            }
+        </select>
+    </div>
+}
+
+@if (_error is not null)
+{
+    <p role="alert">@_error</p>
+}
+
+@if (_selected is not null)
+{
+    <div>
+        <span>Current Market Rate</span>
+        <span>@FormatPrice(_selected.Price)</span>
+        <span>@FormatChange(_selected.PriceChange1hAmount, _selected.PriceChange1h) 1h</span>
+    </div>
+
+    <dl>
+        <div>
+            <dt>All-Time High</dt>
+            <dd>@FormatPrice(_selected.AllTimeHigh)</dd>
+        </div>
+        <div>
+            <dt>All-Time Low</dt>
+            <dd>@FormatPrice(_selected.AllTimeLow)</dd>
+        </div>
+        <div>
+            <dt>24h Volume</dt>
+            <dd>@FormatCompact(_selected.Volume)</dd>
+        </div>
+        <div>
+            <dt>Market Cap</dt>
+            <dd>@FormatCompact(_selected.MarketCap)</dd>
+        </div>
+    </dl>
+}
+
+@code {
+    private static readonly CultureInfo UsCulture = CultureInfo.GetCultureInfo("en-US");
+
+    private IReadOnlyList<Crypto> _cryptos = [];
+    private string? _selectedId;
+    private Crypto? _selected;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _cryptos = await LoadCryptosAsync(Path.Combine(HostEnvironment.ContentRootPath, Configuration["CryptosFile"]!));
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or ArgumentException)
+        {
+            _cryptos = [];
+        }
+
+        if (_cryptos.Count == 0)
+        {
+            _error = "The coin list is unavailable. Delete Data/cryptos.json if it exists and restart the app to download it again.";
+            return;
+        }
+
+        await SelectCryptoAsync(_cryptos[0].Id);
+    }
+    
+    private static async Task<IReadOnlyList<Crypto>> LoadCryptosAsync(string path)
+    {
+        await using var stream = File.OpenRead(path);
+        return await JsonSerializer.DeserializeAsync<List<Crypto>>(stream, JsonSerializerOptions.Web) ?? [];
+    }
+
+    private async Task OnCryptoChangedAsync(ChangeEventArgs e)
+    {
+        if (e.Value?.ToString() is { Length: > 0 } id)
+        {
+            await SelectCryptoAsync(id);
+        }
+    }
+
+    private async Task SelectCryptoAsync(string id)
+    {
+        _selectedId = id;
+        _selected = null;
+        _error = null;
+
+        try
+        {
+            _selected = await CryptoApi.GetCryptoAsync(id);
+        }
+        catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException)
+        {
+            _error = "The price provider returned data that could not be read.";
+        }
+    }
+    
+    private static string FormatPrice(decimal value) => value.ToString(value >= 1 ? "C2" : "C6", UsCulture);
+
+    private static string FormatCompact(decimal value) => value switch
+    {
+        >= 1_000_000_000_000m => (value / 1_000_000_000_000m).ToString("C2", UsCulture) + "T",
+        >= 1_000_000_000m => (value / 1_000_000_000m).ToString("C1", UsCulture) + "B",
+        >= 1_000_000m => (value / 1_000_000m).ToString("C1", UsCulture) + "M",
+        _ => FormatPrice(value)
+    };
+    
+    private static string FormatChange(decimal amount, decimal percent)
+    {
+        var (arrow, sign) = percent >= 0 ? ("▲", "+") : ("▼", "-");
+        return $"{arrow} {sign}{FormatPrice(Math.Abs(amount))} ({sign}{Math.Abs(percent).ToString("0.00", UsCulture)}%)";
+    }
+}

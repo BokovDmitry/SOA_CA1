@@ -12,12 +12,12 @@ public class CryptoService : ICryptoService
         _httpClient = httpClient;
     }
     
-    public async Task<IReadOnlyList<string>> GetCryptoIdsAsync(int ids_amount,
+    public async Task<IReadOnlyList<Crypto>> GetCryptosAsync(int amount,
         CancellationToken cancellationToken = default)
     {
-        string url = $"coins?limit={ids_amount}";
+        string url = $"coins?limit={amount}";
         var response = await _httpClient.GetFromJsonAsync<CoinsResponse>(url, cancellationToken);
-        return response?.Result?.Select(coin => coin.Id).ToList() ?? [];
+        return response?.Result ?? [];
     }
     
     public async Task<Crypto> GetCryptoAsync(string id, CancellationToken cancellationToken = default)
