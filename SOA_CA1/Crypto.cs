@@ -13,7 +13,7 @@ public class Crypto
     private decimal _allTimeHigh;
     private decimal _allTimeLow;
     private decimal _priceChange1h;
-    private List<float> _chartPoints = [];
+    private List<ChartPoint> _chartPoints = [];
 
     public string Id
     {
@@ -83,7 +83,7 @@ public class Crypto
             : throw new ArgumentOutOfRangeException(nameof(value), value, "1h price change must be greater than -100%.");
     }
 
-    public List<float> ChartPoints
+    public List<ChartPoint> ChartPoints
     {
         get => _chartPoints;
         set => _chartPoints = value ?? throw new ArgumentNullException(nameof(value));
@@ -120,7 +120,7 @@ public class Crypto
     }
 
     public Crypto(string id, string name, string symbol, decimal price, decimal volume, decimal marketCap,
-        decimal totalSupply, decimal priceChange1h, List<float> chartPoints)
+        decimal totalSupply, decimal priceChange1h, List<ChartPoint> chartPoints)
         : this(id, name, symbol, price, volume, marketCap, totalSupply, priceChange1h)
     {
         _chartPoints = chartPoints ?? throw new ArgumentNullException(nameof(chartPoints));

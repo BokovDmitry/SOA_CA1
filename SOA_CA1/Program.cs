@@ -1,4 +1,5 @@
 using System.Text.Json;
+using ApexCharts;
 using DotNetEnv;
 using SOA_CA1;
 using SOA_CA1.Components;
@@ -22,6 +23,9 @@ var cryptosFile = Path.Combine(builder.Environment.ContentRootPath,
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+
+// Blazor-ApexCharts services used by the Crypto Market price chart
+builder.Services.AddApexCharts();
 
 // Typed HttpClient: every CryptoService gets a client already pointed at the CoinStats API with the key attached
 builder.Services.AddHttpClient<ICryptoService, CryptoService>(client =>
