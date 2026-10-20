@@ -234,7 +234,7 @@
         >= 1_000_000m => (value / 1_000_000m).ToString("C1", UsCulture) + "M",
         _ => FormatPrice(value)
     };
-    
+        
     private static string FormatChange(decimal amount, decimal percent)
     {
         var (arrow, sign) = percent >= 0 ? ("▲", "+") : ("▼", "-");
