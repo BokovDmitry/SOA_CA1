@@ -1,5 +1,4 @@
 ﻿@page "/"
-@* Prerendering is off so the page calls the rate-limited API once per load instead of twice *@
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 @using System.Globalization
 @using System.Net
@@ -10,74 +9,92 @@
 
 <PageTitle>Crypto Market</PageTitle>
 
-<h1>Crypto Market</h1>
-<p>Real-time prices and 1-hour price action.</p>
+<div class="market">
+    <div class="market-inner">
+        <div class="market-heading">
+            <h1>Crypto Market</h1>
+            <p>Real-time prices and 1-hour price action.</p>
+        </div>
 
-@if (_cryptos.Count > 0)
-{
-    <div>
-        @if (!string.IsNullOrEmpty(_selected?.Icon))
+        @if (_error is not null)
         {
-            <img src="@_selected.Icon" alt="@_selected.Name logo" width="28" height="28" />
+            <p class="market-error" role="alert">@_error</p>
         }
-        <select value="@_selectedId" @onchange="OnCryptoChangedAsync" aria-label="Cryptocurrency">
-            @foreach (var crypto in _cryptos)
-            {
-                <option value="@crypto.Id">@crypto</option>
-            }
-        </select>
-    </div>
 
-    <div role="group" aria-label="Chart timeframe">
-        @foreach (var (period, label) in ChartPeriods)
+        @if (_cryptos.Count > 0)
         {
-            <button type="button" aria-pressed="@(period == _period ? "true" : "false")"
-                    @onclick="() => SelectPeriodAsync(period)">@label</button>
+            <section class="market-card">
+                <div class="card-toolbar">
+                    <div class="coin-picker">
+                        <span class="coin-icon">
+                            @if (!string.IsNullOrEmpty(_selected?.Icon))
+                            {
+                                <img src="@_selected.Icon" alt="@_selected.Name logo" width="20" height="20" />
+                            }
+                        </span>
+                        <select value="@_selectedId" @onchange="OnCryptoChangedAsync" aria-label="Cryptocurrency">
+                            @foreach (var crypto in _cryptos)
+                            {
+                                <option value="@crypto.Id">@crypto</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="timeframes" role="group" aria-label="Chart timeframe">
+                        @foreach (var (period, label) in ChartPeriods)
+                        {
+                            <button type="button" class="timeframe-btn" aria-pressed="@(period == _period ? "true" : "false")"
+                                    @onclick="() => SelectPeriodAsync(period)">@label</button>
+                        }
+                    </div>
+                </div>
+
+                @if (_selected is not null)
+                {
+                    <div class="rate">
+                        <span class="label">Current Market Rate</span>
+                        <div class="rate-row">
+                            <span class="rate-price">@FormatPrice(_selected.Price)</span>
+                            <span class="change-badge @(_selected.PriceChange1h >= 0 ? "up" : "down")">
+                                @FormatChange(_selected.PriceChange1hAmount, _selected.PriceChange1h) 1h
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="chart">
+                        @if (_chartOptions is not null)
+                        {
+                            <ApexChart @key="(_selectedId, _period)" TItem="ChartPoint" Options="_chartOptions"
+                                       XAxisType="XAxisType.Datetime" Height="192">
+                                <ApexPointSeries TItem="ChartPoint" Items="_selected.ChartPoints" Name="@_selected.Symbol"
+                                                 SeriesType="SeriesType.Area" XValue="point => point.Time" YValue="point => point.Price" />
+                            </ApexChart>
+                        }
+                    </div>
+
+                    <dl class="stats">
+                        <div>
+                            <dt class="label">All-Time High</dt>
+                            <dd>@FormatPrice(_selected.AllTimeHigh)</dd>
+                        </div>
+                        <div>
+                            <dt class="label">All-Time Low</dt>
+                            <dd>@FormatPrice(_selected.AllTimeLow)</dd>
+                        </div>
+                        <div>
+                            <dt class="label">24h Volume</dt>
+                            <dd>@FormatCompact(_selected.Volume)</dd>
+                        </div>
+                        <div>
+                            <dt class="label">Market Cap</dt>
+                            <dd>@FormatCompact(_selected.MarketCap)</dd>
+                        </div>
+                    </dl>
+                }
+            </section>
         }
     </div>
-}
-
-@if (_error is not null)
-{
-    <p role="alert">@_error</p>
-}
-
-@if (_selected is not null)
-{
-    <div>
-        <span>Current Market Rate</span>
-        <span>@FormatPrice(_selected.Price)</span>
-        <span>@FormatChange(_selected.PriceChange1hAmount, _selected.PriceChange1h) 1h</span>
-    </div>
-
-    @if (_chartOptions is not null)
-    {
-        <ApexChart @key="(_selectedId, _period)" TItem="ChartPoint" Options="_chartOptions"
-                   XAxisType="XAxisType.Datetime" Height="192">
-            <ApexPointSeries TItem="ChartPoint" Items="_selected.ChartPoints" Name="@_selected.Symbol"
-                             SeriesType="SeriesType.Area" XValue="point => point.Time" YValue="point => point.Price" />
-        </ApexChart>
-    }
-
-    <dl>
-        <div>
-            <dt>All-Time High</dt>
-            <dd>@FormatPrice(_selected.AllTimeHigh)</dd>
-        </div>
-        <div>
-            <dt>All-Time Low</dt>
-            <dd>@FormatPrice(_selected.AllTimeLow)</dd>
-        </div>
-        <div>
-            <dt>24h Volume</dt>
-            <dd>@FormatCompact(_selected.Volume)</dd>
-        </div>
-        <div>
-            <dt>Market Cap</dt>
-            <dd>@FormatCompact(_selected.MarketCap)</dd>
-        </div>
-    </dl>
-}
+</div>
 
 @code {
     private static readonly CultureInfo UsCulture = CultureInfo.GetCultureInfo("en-US");
@@ -217,7 +234,7 @@
         >= 1_000_000m => (value / 1_000_000m).ToString("C1", UsCulture) + "M",
         _ => FormatPrice(value)
     };
-    
+        
     private static string FormatChange(decimal amount, decimal percent)
     {
         var (arrow, sign) = percent >= 0 ? ("▲", "+") : ("▼", "-");
