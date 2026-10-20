@@ -1,4 +1,3 @@
-using System.Text.Json;
 using ApexCharts;
 using DotNetEnv;
 using SOA_CA1;
@@ -38,20 +37,8 @@ var app = builder.Build();
 
 // Fetch the coin list once on first start-up and save it; the Crypto Market dropdown reads it from the file.
 // Delete the file to fetch a fresh list. A failed fetch only logs a warning, the page then shows the list as unavailable.
-if (!File.Exists(cryptosFile))
-{
-    try
-    {
-        var cryptos = await app.Services.GetRequiredService<ICryptoService>().GetCryptosAsync(cryptosNumber);
-        Directory.CreateDirectory(Path.GetDirectoryName(cryptosFile)!);
-        await File.WriteAllTextAsync(cryptosFile,
-            JsonSerializer.Serialize(cryptos, new JsonSerializerOptions(JsonSerializerOptions.Web) { WriteIndented = true }));
-    }
-    catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or ArgumentException or IOException)
-    {
-        app.Logger.LogWarning(ex, "Could not create the coin list file {File}.", cryptosFile);
-    }
-}
+await DataFileSeeder.SeedFileAsync(cryptosFile,
+    () => app.Services.GetRequiredService<ICryptoService>().GetCryptosAsync(cryptosNumber));
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
