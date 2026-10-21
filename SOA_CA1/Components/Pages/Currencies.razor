@@ -1,0 +1,142 @@
+@page "/currencies"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@using System.Text.Json
+@inject ICurrencyService CurrencyApi
+@inject IConfiguration Configuration
+@inject IWebHostEnvironment HostEnvironment
+
+<PageTitle>Currencies</PageTitle>
+
+<div class="market">
+    <div class="market-inner">
+        <div class="market-heading">
+            <h1>Currency Converter</h1>
+            <p>Convert between world currencies at the latest exchange rates.</p>
+        </div>
+
+        @if (_error is not null)
+        {
+            <p class="market-error" role="alert">@_error</p>
+        }
+
+        @if (_currencies.Count > 0)
+        {
+            <section class="market-card">
+                <div class="field-row">
+                    <div class="field">
+                        <label class="label" for="amount">Amount</label>
+                        <input id="amount" class="field-control amount-input" type="number" min="0" step="any" @bind="_amount" />
+                    </div>
+
+                    <div class="field currency-field">
+                        <label class="label" for="from-currency">From</label>
+                        <select id="from-currency" class="field-control" @bind="_from">
+                            @foreach (var currency in _currencies)
+                            {
+                                <option value="@currency.Code">@currency</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <div class="swap-row">
+                    <button type="button" class="swap-btn" title="Reverse currency pair" aria-label="Swap currencies"
+                            @onclick="Swap">
+                        <img class="swap-icon" src="images/icons/swap-vert.svg" alt="" width="20" height="20" />
+                    </button>
+                </div>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label class="label" for="converted-amount">Converted amount</label>
+                        <input id="converted-amount" class="field-control amount-input" type="text" readonly
+                               value="@_result?.Result.ToString("N4")" />
+                    </div>
+
+                    <div class="field currency-field">
+                        <label class="label" for="to-currency">To</label>
+                        <select id="to-currency" class="field-control" @bind="_to">
+                            @foreach (var currency in _currencies)
+                            {
+                                <option value="@currency.Code">@currency</option>
+                            }
+                        </select>
+                    </div>
+                </div>
+
+                <button type="button" class="convert-btn" @onclick="ConvertAsync" disabled="@_loading">Convert</button>
+
+                @if (_loading)
+                {
+                    <p>Converting...</p>
+                }
+
+                @if (_result is not null)
+                {
+                    <p>1 @_result.From = @_result.Rate.ToString("N6") @_result.To</p>
+                    <p>Rates as of @_result.Date</p>
+                }
+            </section>
+        }
+    </div>
+</div>
+
+@code {
+    private IReadOnlyList<Currency> _currencies = [];
+    private decimal _amount = 1m;
+    private string _from = "EUR";
+    private string _to = "USD";
+    private ConversionResult? _result;
+    private bool _loading;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _currencies = await LoadCurrenciesAsync(Path.Combine(HostEnvironment.ContentRootPath, Configuration["CurrenciesFile"]!));
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or ArgumentException)
+        {
+            _currencies = [];
+        }
+
+        if (_currencies.Count == 0)
+        {
+            _error = "The currency list is unavailable. Delete Data/currencies.json if it exists and restart the app to download it again.";
+        }
+    }
+
+    private static async Task<IReadOnlyList<Currency>> LoadCurrenciesAsync(string path)
+    {
+        await using var stream = File.OpenRead(path);
+        return await JsonSerializer.DeserializeAsync<List<Currency>>(stream, JsonSerializerOptions.Web) ?? [];
+    }
+
+    private void Swap()
+    {
+        (_from, _to) = (_to, _from);
+        _result = null;
+    }
+
+    private async Task ConvertAsync()
+    {
+        _error = null;
+        _result = null;
+        _loading = true;
+
+        try
+        {
+            _result = await CurrencyApi.ConvertAsync(_from, _to, _amount);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException or InvalidOperationException
+                                       or KeyNotFoundException or NullReferenceException)
+        {
+            _error = $"The conversion failed: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

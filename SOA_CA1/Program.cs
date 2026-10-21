@@ -1,12 +1,58 @@
+using ApexCharts;
+using DotNetEnv;
+using SOA_CA1;
 using SOA_CA1.Components;
 
+// Loads SOA_CA1/.env into environment variables. Must run before CreateBuilder so builder.Configuration sees them.
+Env.Load();
+
 var builder = WebApplication.CreateBuilder(args);
+
+// Fail at startup with a clear message instead of a null reference on the first API call
+var cryptoApiUri = builder.Configuration["CRYPTO_API_URI"]
+    ?? throw new InvalidOperationException("CRYPTO_API_URI is missing. Add it to SOA_CA1/.env.");
+var cryptoApiKey = builder.Configuration["CRYPTO_API_KEY"]
+    ?? throw new InvalidOperationException("CRYPTO_API_KEY is missing. Add it to SOA_CA1/.env.");
+var cryptosNumber = int.TryParse(builder.Configuration["CRYPTO_IDS_NUMBER"], out var number) && number > 0
+    ? number
+    : throw new InvalidOperationException("CRYPTO_IDS_NUMBER is missing or not a positive number. Add it to SOA_CA1/.env.");
+var cryptosFile = Path.Combine(builder.Environment.ContentRootPath,
+    builder.Configuration["CryptosFile"] ?? throw new InvalidOperationException("CryptosFile is missing in appsettings.json."));
+var currencyApiUri = builder.Configuration["CURRENCY_API_URI"]
+    ?? throw new InvalidOperationException("CURRENCY_API_URI is missing. Add it to SOA_CA1/.env.");
+_ = builder.Configuration["CURRENCY_API_KEY"]
+    ?? throw new InvalidOperationException("CURRENCY_API_KEY is missing. Add it to SOA_CA1/.env.");
+var currenciesFile = Path.Combine(builder.Environment.ContentRootPath,
+    builder.Configuration["CurrenciesFile"] ?? throw new InvalidOperationException("CurrenciesFile is missing in appsettings.json."));
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+// Blazor-ApexCharts services used by the Crypto Market price chart
+builder.Services.AddApexCharts();
+
+// Typed HttpClient: every CryptoService gets a client already pointed at the CoinStats API with the key attached
+builder.Services.AddHttpClient<ICryptoService, CryptoService>(client =>
+{
+    client.BaseAddress = new Uri(cryptoApiUri);
+    client.DefaultRequestHeaders.Add("X-API-KEY", cryptoApiKey);
+});
+
+builder.Services.AddHttpClient<ICurrencyService, CurrencyService>(client =>
+{
+    client.BaseAddress = new Uri(currencyApiUri);
+});
+
 var app = builder.Build();
+
+// Fetch the coin list once on first start-up and save it; the Crypto Market dropdown reads it from the file.
+// Fetch the currencies on first start-up and save it; The currency selector reads it and builds dropdown.
+// Delete the file to fetch a fresh list. A failed fetch only logs a warning, the page then shows the list as unavailable.
+await DataFileSeeder.SeedFileAsync(cryptosFile,
+    () => app.Services.GetRequiredService<ICryptoService>().GetCryptosAsync(cryptosNumber));
+await DataFileSeeder.SeedFileAsync(currenciesFile,
+    () => app.Services.GetRequiredService<ICurrencyService>().GetCurrenciesAsync());
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

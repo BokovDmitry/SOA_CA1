@@ -1,0 +1,243 @@
+﻿@page "/"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@using System.Globalization
+@using System.Net
+@using System.Text.Json
+@inject ICryptoService CryptoApi
+@inject IConfiguration Configuration
+@inject IWebHostEnvironment HostEnvironment
+
+<PageTitle>Crypto Market</PageTitle>
+
+<div class="market">
+    <div class="market-inner">
+        <div class="market-heading">
+            <h1>Crypto Market</h1>
+            <p>Real-time prices and 1-hour price action.</p>
+        </div>
+
+        @if (_error is not null)
+        {
+            <p class="market-error" role="alert">@_error</p>
+        }
+
+        @if (_cryptos.Count > 0)
+        {
+            <section class="market-card">
+                <div class="card-toolbar">
+                    <div class="coin-picker">
+                        <span class="coin-icon">
+                            @if (!string.IsNullOrEmpty(_selected?.Icon))
+                            {
+                                <img src="@_selected.Icon" alt="@_selected.Name logo" width="20" height="20" />
+                            }
+                        </span>
+                        <select value="@_selectedId" @onchange="OnCryptoChangedAsync" aria-label="Cryptocurrency">
+                            @foreach (var crypto in _cryptos)
+                            {
+                                <option value="@crypto.Id">@crypto</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="timeframes" role="group" aria-label="Chart timeframe">
+                        @foreach (var (period, label) in ChartPeriods)
+                        {
+                            <button type="button" class="timeframe-btn" aria-pressed="@(period == _period ? "true" : "false")"
+                                    @onclick="() => SelectPeriodAsync(period)">@label</button>
+                        }
+                    </div>
+                </div>
+
+                @if (_selected is not null)
+                {
+                    <div class="rate">
+                        <span class="label">Current Market Rate</span>
+                        <div class="rate-row">
+                            <span class="rate-price">@FormatPrice(_selected.Price)</span>
+                            <span class="change-badge @(_selected.PriceChange1h >= 0 ? "up" : "down")">
+                                @FormatChange(_selected.PriceChange1hAmount, _selected.PriceChange1h) 1h
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="chart">
+                        @if (_chartOptions is not null)
+                        {
+                            <ApexChart @key="(_selectedId, _period)" TItem="ChartPoint" Options="_chartOptions"
+                                       XAxisType="XAxisType.Datetime" Height="192">
+                                <ApexPointSeries TItem="ChartPoint" Items="_selected.ChartPoints" Name="@_selected.Symbol"
+                                                 SeriesType="SeriesType.Area" XValue="point => point.Time" YValue="point => point.Price" />
+                            </ApexChart>
+                        }
+                    </div>
+
+                    <dl class="stats">
+                        <div>
+                            <dt class="label">All-Time High</dt>
+                            <dd>@FormatPrice(_selected.AllTimeHigh)</dd>
+                        </div>
+                        <div>
+                            <dt class="label">All-Time Low</dt>
+                            <dd>@FormatPrice(_selected.AllTimeLow)</dd>
+                        </div>
+                        <div>
+                            <dt class="label">24h Volume</dt>
+                            <dd>@FormatCompact(_selected.Volume)</dd>
+                        </div>
+                        <div>
+                            <dt class="label">Market Cap</dt>
+                            <dd>@FormatCompact(_selected.MarketCap)</dd>
+                        </div>
+                    </dl>
+                }
+            </section>
+        }
+    </div>
+</div>
+
+@code {
+    private static readonly CultureInfo UsCulture = CultureInfo.GetCultureInfo("en-US");
+
+    private static readonly (ChartPeriod Period, string Label)[] ChartPeriods =
+    [
+        (ChartPeriod.Week, "1 Week"),
+        (ChartPeriod.Month, "1 Month"),
+        (ChartPeriod.SixMonths, "6 Months")
+    ];
+
+    private IReadOnlyList<Crypto> _cryptos = [];
+    private string? _selectedId;
+    private Crypto? _selected;
+    private ChartPeriod _period = ChartPeriod.Month;
+    private ApexChartOptions<ChartPoint>? _chartOptions;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _cryptos = await LoadCryptosAsync(Path.Combine(HostEnvironment.ContentRootPath, Configuration["CryptosFile"]!));
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or ArgumentException)
+        {
+            _cryptos = [];
+        }
+
+        if (_cryptos.Count == 0)
+        {
+            _error = "The coin list is unavailable. Delete Data/cryptos.json if it exists and restart the app to download it again.";
+            return;
+        }
+
+        await SelectCryptoAsync(_cryptos[0].Id);
+    }
+    
+    private static async Task<IReadOnlyList<Crypto>> LoadCryptosAsync(string path)
+    {
+        await using var stream = File.OpenRead(path);
+        return await JsonSerializer.DeserializeAsync<List<Crypto>>(stream, JsonSerializerOptions.Web) ?? [];
+    }
+
+    private async Task OnCryptoChangedAsync(ChangeEventArgs e)
+    {
+        if (e.Value?.ToString() is { Length: > 0 } id)
+        {
+            await SelectCryptoAsync(id);
+        }
+    }
+
+    private async Task SelectCryptoAsync(string id)
+    {
+        _selectedId = id;
+        _selected = null;
+        _chartOptions = null;
+
+        await RunApiCallAsync(async () =>
+        {
+            _selected = await CryptoApi.GetCryptoAsync(id);
+            await LoadChartAsync(_selected);
+        });
+    }
+
+    private async Task SelectPeriodAsync(ChartPeriod period)
+    {
+        _period = period;
+        if (_selected is not null)
+        {
+            await RunApiCallAsync(() => LoadChartAsync(_selected));
+        }
+    }
+
+    private async Task LoadChartAsync(Crypto crypto)
+    {
+        crypto.ChartPoints = [];
+        _chartOptions = null;
+
+        crypto.ChartPoints = await CryptoApi.GetChartPointsAsync(crypto.Id, _period);
+        if (crypto.ChartPoints.Count > 0)
+        {
+            _chartOptions = CreateChartOptions(crypto.ChartPoints, _period);
+        }
+    }
+
+    private async Task RunApiCallAsync(Func<Task> call)
+    {
+        _error = null;
+
+        try
+        {
+            await call();
+        }
+        catch (Exception ex) when (ex is JsonException or ArgumentException or InvalidOperationException)
+        {
+            _error = "The price provider returned data that could not be read.";
+        }
+    }
+
+    private static ApexChartOptions<ChartPoint> CreateChartOptions(
+        List<ChartPoint> points, ChartPeriod period)
+    {
+        var color = points[^1].Price >= points[0].Price ? "#059669" : "#dc2626";
+
+        return new ApexChartOptions<ChartPoint>
+        {
+            Chart = new Chart
+            {
+                Toolbar = new Toolbar { Show = false },
+                Zoom = new Zoom { Enabled = false }
+            },
+            Colors = [color],
+            DataLabels = new DataLabels { Enabled = false },
+            Stroke = new Stroke { Curve = Curve.Smooth, Width = 2 },
+            Fill = new Fill
+            {
+                Type = FillType.Gradient,
+                Gradient = new FillGradient { OpacityFrom = 0.25, OpacityTo = 0 }
+            },
+            Grid = new Grid { Show = false },
+            Xaxis = new XAxis { Labels = new XAxisLabels { DatetimeUTC = true } },
+            Yaxis = [new YAxis { Show = false }],
+            Tooltip = new Tooltip
+            {
+                X = new TooltipX { Format = period == ChartPeriod.Week ? "dd MMM HH:mm" : "dd MMM yyyy" }
+            }
+        };
+    }
+    
+    private static string FormatPrice(decimal value) => value.ToString(value >= 1 ? "C2" : "C6", UsCulture);
+
+    private static string FormatCompact(decimal value) => value switch
+    {
+        >= 1_000_000_000_000m => (value / 1_000_000_000_000m).ToString("C2", UsCulture) + "T",
+        >= 1_000_000_000m => (value / 1_000_000_000m).ToString("C1", UsCulture) + "B",
+        >= 1_000_000m => (value / 1_000_000m).ToString("C1", UsCulture) + "M",
+        _ => FormatPrice(value)
+    };
+        
+    private static string FormatChange(decimal amount, decimal percent)
+    {
+        var (arrow, sign) = percent >= 0 ? ("▲", "+") : ("▼", "-");
+        return $"{arrow} {sign}{FormatPrice(Math.Abs(amount))} ({sign}{Math.Abs(percent).ToString("0.00", UsCulture)}%)";
+    }
+}
