@@ -7,66 +7,79 @@
 
 <PageTitle>Currencies</PageTitle>
 
-<h1>Currency Converter</h1>
+<div class="converter">
+    <div class="converter-inner">
+        <div class="converter-heading">
+            <h1>Currency Converter</h1>
+            <p>Convert between world currencies at the latest exchange rates.</p>
+        </div>
 
-@if (_error is not null)
-{
-    <p role="alert">@_error</p>
-}
+        @if (_error is not null)
+        {
+            <p class="converter-error" role="alert">@_error</p>
+        }
 
-@if (_currencies.Count > 0)
-{
-    <div>
-        <label>
-            Amount
-            <input type="number" min="0" step="any" @bind="_amount" />
-        </label>
+        @if (_currencies.Count > 0)
+        {
+            <div>
+                <label>
+                    Amount
+                    <input type="number" min="0" step="any" @bind="_amount" />
+                </label>
+            </div>
+
+            <div>
+                <label>
+                    From
+                    <select @bind="_from">
+                        @foreach (var currency in _currencies)
+                        {
+                            <option value="@currency.Code">@currency</option>
+                        }
+                    </select>
+                </label>
+            </div>
+
+            <div>
+                <button type="button" @onclick="Swap">Swap</button>
+            </div>
+
+            <div>
+                <label>
+                    To
+                    <select @bind="_to">
+                        @foreach (var currency in _currencies)
+                        {
+                            <option value="@currency.Code">@currency</option>
+                        }
+                    </select>
+                </label>
+            </div>
+
+            <div>
+                <label>
+                    Converted amount
+                    <input type="text" readonly value="@_result?.Result.ToString("N4")" />
+                </label>
+            </div>
+
+            <div>
+                <button type="button" @onclick="ConvertAsync" disabled="@_loading">Convert</button>
+            </div>
+
+            @if (_loading)
+            {
+                <p>Converting...</p>
+            }
+
+            @if (_result is not null)
+            {
+                <p>1 @_result.From = @_result.Rate.ToString("N6") @_result.To</p>
+                <p>Rates as of @_result.Date</p>
+            }
+        }
     </div>
-
-    <div>
-        <label>
-            From
-            <select @bind="_from">
-                @foreach (var currency in _currencies)
-                {
-                    <option value="@currency.Code">@currency</option>
-                }
-            </select>
-        </label>
-    </div>
-
-    <div>
-        <button type="button" @onclick="Swap">Swap</button>
-    </div>
-
-    <div>
-        <label>
-            To
-            <select @bind="_to">
-                @foreach (var currency in _currencies)
-                {
-                    <option value="@currency.Code">@currency</option>
-                }
-            </select>
-        </label>
-    </div>
-
-    <div>
-        <button type="button" @onclick="ConvertAsync" disabled="@_loading">Convert</button>
-    </div>
-
-    @if (_loading)
-    {
-        <p>Converting...</p>
-    }
-
-    @if (_result is not null)
-    {
-        <p>@_result.Amount @_result.From = @_result.Result.ToString("N4") @_result.To</p>
-        <p>1 @_result.From = @_result.Rate.ToString("N6") @_result.To</p>
-        <p>Rates as of @_result.Date</p>
-    }
-}
+</div>
 
 @code {
     private IReadOnlyList<Currency> _currencies = [];
