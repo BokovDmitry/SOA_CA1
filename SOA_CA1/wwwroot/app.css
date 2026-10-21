@@ -7,6 +7,8 @@
     --color-surface-container-lowest: #ffffff;
     --color-surface-container-low: #eff4ff;
     --color-secondary: #515f74;
+    --color-primary: #000000;
+    --color-on-primary: #ffffff;
     --color-error-container: #ffdad6;
     --color-on-error-container: #93000a;
     --color-positive-container: #ecfdf5;
