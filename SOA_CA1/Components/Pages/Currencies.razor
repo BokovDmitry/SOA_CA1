@@ -21,46 +21,43 @@
 
         @if (_currencies.Count > 0)
         {
-            <div>
-                <label>
-                    Amount
-                    <input type="number" min="0" step="any" @bind="_amount" />
-                </label>
-            </div>
+            <div class="field-row">
+                <div class="field">
+                    <label class="label" for="amount">Amount</label>
+                    <input id="amount" class="field-control amount-input" type="number" min="0" step="any" @bind="_amount" />
+                </div>
 
-            <div>
-                <label>
-                    From
-                    <select @bind="_from">
+                <div class="field currency-field">
+                    <label class="label" for="from-currency">From</label>
+                    <select id="from-currency" class="field-control" @bind="_from">
                         @foreach (var currency in _currencies)
                         {
                             <option value="@currency.Code">@currency</option>
                         }
                     </select>
-                </label>
+                </div>
             </div>
 
             <div>
                 <button type="button" @onclick="Swap">Swap</button>
             </div>
 
-            <div>
-                <label>
-                    To
-                    <select @bind="_to">
+            <div class="field-row">
+                <div class="field">
+                    <label class="label" for="converted-amount">Converted amount</label>
+                    <input id="converted-amount" class="field-control amount-input" type="text" readonly
+                           value="@_result?.Result.ToString("N4")" />
+                </div>
+
+                <div class="field currency-field">
+                    <label class="label" for="to-currency">To</label>
+                    <select id="to-currency" class="field-control" @bind="_to">
                         @foreach (var currency in _currencies)
                         {
                             <option value="@currency.Code">@currency</option>
                         }
                     </select>
-                </label>
-            </div>
-
-            <div>
-                <label>
-                    Converted amount
-                    <input type="text" readonly value="@_result?.Result.ToString("N4")" />
-                </label>
+                </div>
             </div>
 
             <div>

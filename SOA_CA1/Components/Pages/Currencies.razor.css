@@ -52,6 +52,83 @@
     line-height: 22px;
 }
 
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+}
+
+.field-row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+    .field-row > .field {
+        flex: 3 1 0;
+        min-width: 0;
+    }
+
+    .field-row > .currency-field {
+        flex-grow: 2;
+    }
+
+    .field-row .field-control {
+        flex: 1;
+    }
+
+.label {
+    font-size: 11px;
+    line-height: 14px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--color-secondary);
+}
+
+.field-control {
+    width: 100%;
+    min-width: 0;
+    padding: 0.625rem 0.75rem;
+    background-color: var(--color-surface-container-low);
+    border: 1px solid color-mix(in srgb, var(--color-outline-variant) 30%, transparent);
+    border-radius: 0.125rem;
+    font-family: var(--font-headline);
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--color-on-surface);
+    transition: border-color 150ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+    .field-control:hover {
+        border-color: var(--color-outline-variant);
+    }
+
+    .field-control:focus {
+        outline: 2px solid var(--color-on-surface);
+        outline-offset: 2px;
+    }
+
+select.field-control {
+    text-overflow: ellipsis;
+    cursor: pointer;
+}
+
+.amount-input {
+    font-size: 24px;
+    line-height: 32px;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    appearance: textfield;
+}
+
+    .amount-input::-webkit-inner-spin-button,
+    .amount-input::-webkit-outer-spin-button {
+        margin: 0;
+        appearance: none;
+    }
+
 @media (min-width: 768px) {
     .converter-heading h1 {
         font-size: 48px;
